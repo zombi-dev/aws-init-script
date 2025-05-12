@@ -24,10 +24,10 @@ else
        | tee -a "$log_file"
   exit 1
 fi
-args="-v -y --skip-broken"
-upgrade_args="-v -y --skip-broken --bugfix --enhancement --newpackage --security"
-pip_args="-v --break-system-packages --log $log_file"
-flatpak_args="-v -y --or-update --noninteractive"
+args="-y --skip-broken"
+upgrade_args="-y --skip-broken --bugfix --enhancement --newpackage --security"
+pip_args="---break-system-packages --log $log_file"
+flatpak_args="-y --or-update --noninteractive"
 echo "Starting..." | tee -a "$log_file"
 
 check_updates()
