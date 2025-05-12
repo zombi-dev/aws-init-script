@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
+cd "$HOME"
 log_file="$HOME/init.log"
+rm "$log_file"
 : > "$log_file"  # truncate or create
 
 echo "AWS Init Script" | tee -a "$log_file"
@@ -25,10 +27,10 @@ else
        | tee -a "$log_file"
   exit 1
 fi
-args="-y --skip-broken"
-upgrade_args="-y --skip-broken --bugfix --enhancement --newpackage --security"
-pip_args="--break-system-packages --log $log_file"
-flatpak_args="-y --or-update --noninteractive"
+args="-v -y --skip-broken"
+upgrade_args="-v -y --skip-broken --bugfix --enhancement --newpackage --security"
+pip_args="-v --log $log_file"
+flatpak_args="-v -y --or-update --noninteractive"
 echo "Starting..." | tee -a "$log_file"
 
 check_updates()
@@ -51,7 +53,7 @@ install_vnc()
 	cd "$HOME"
 	# install gnome
 	echo "Installing and enabling GNOME... (this may take a while)" | tee -a "$log_file"
-	sudo dnf groupinstall "Desktop" "$args" &>> "$log_file"
+	sudo dnf groupinstall "$args Desktop" &>> "$log_file"
 	sudo dnf install "$args" \
 	  gnome-session gnome-shell \
 	  mutter gnome-settings-daemon dbus-x &>> "$log_file"
@@ -140,7 +142,7 @@ setup_timezone()
 	echo "Setting timezone..." | tee -a "$log_file"
 	sudo timedatectl set-timezone Europe/London &>> "$log_file"
 	echo "Installing chrony..." | tee -a "$log_file"
-	sudo yum install chrony &>> "$log_file"
+	sudo yum install "$args" chrony &>> "$log_file"
 	echo "Configuring chrony..." | tee -a "$log_file"
 	chrony_conf="/etc/chrony.conf"
 	echo "server fd00:ec2::123 prefer iburst minpoll 4 maxpoll 4" | sudo tee -a "$chrony_conf" &>> "$log_file"
@@ -214,23 +216,27 @@ install_tailscale()
 	curl -fsSL https://tailscale.com/install.sh | sh &>> "$log_file"
 	echo "Setting up tailscale ip_foward..." | tee -a "$log_file"
 	[ -d "/etc/sysctl.d" ] && tailscale_directory_exists || tailscale_directory_noexist
-	read -r -p "Type in your Tailscale AWS VM auth key: (use https://login.tailscale.com/admin/machines/new-aws)\n" auth_key
-	read -r -p "Type in the route to advertise: (typically 10.0.0.0/20)\n(Leave blank to advertise none)\n" routes
+ 	printf "Type in your Tailscale AWS VM auth key: (use https://login.tailscale.com/admin/machines/new-aws)\n"
+	read -r auth_key
+ 	printf "Type in the route to advertise: (typically 10.0.0.0/20)\n(Leave blank to advertise none)\n"
+	read -r routes
 	routes=${routes:-""}
 	echo "Starting tailscale..." | tee -a "$log_file"
-	tailscale up --ssh --advertise-exit-node --advertise-routes="$routes" --auth-key="$auth_key" &>> "$log_file"
+	sudo tailscale up --ssh --advertise-exit-node --advertise-routes="$routes" --auth-key="$auth_key" &>> "$log_file"
 	echo "Configuring tailscale..." | tee -a "$log_file"
-	tailscale set --exit-node-allow-lan-access --accept-routes --auto-update --webclient &>> "$log_file"
+	sudo tailscale set --exit-node-allow-lan-access --accept-routes --auto-update --webclient &>> "$log_file"
 	echo "Restarting tailscale..." | tee -a "$log_file"
-	tailscale down &>> "$log_file"
-	tailscale up &>> "$log_file"
+	sudo tailscale down &>> "$log_file"
+	sudo tailscale up &>> "$log_file"
 }
 
 install_ncdu()
 {
 	echo "Running install_ncdu()..." | tee -a "$log_file"
-	ncdu_version="2.8.2"
-	read -r -p "Enter the latest ncdu version (.tar.gz download link)\n(Leave blank to use version $ncdu_version)\n" ncdu_version
+	def_ncdu_version="2.8.2"
+ 	printf "Enter the latest ncdu version (.tar.gz download link)\n(Leave blank to use version $def_ncdu_version)\n"
+	read -r ncdu_version
+ 	ncdu_version=${ncdu_version:-"def_ncdu_version"}
 	echo "Downloading ncdu $ncdu_version..." | tee -a "$log_file"
 	cd /opt
 	wget "https://dev.yorhel.nl/download/ncdu-$ncdu_version.tar.gz" &>> "$log_file"
@@ -248,14 +254,16 @@ make_swap()
 	echo "Running make_swap()..." | tee -a "$log_file"
 	cd /
 	swap_size="256G"
-	read -r -p "Enter how much swap space to be allocated (enter the number and G at the end for GB)\n(Leave blank to use size $swap_size)\n" swap_size
+ 	printf "Enter how much swap space to be allocated (enter the number and G at the end for GB)\n(Leave blank to use size $swap_size)\n" | tee -a "$log_file"
+	read -r swap_size
 	echo "Allocatting swap..." | tee -a "$log_file"
 	swap_location="/swapfile"
 	sudo fallocate -l "$swap_size" "$swap_location" &>> "$log_file"
 	sudo chmod 600 "$swap_location" &>> "$log_file"
 	sudo mkswap "$swap_location" &>> "$log_file"
 	sudo swapon "$swap_location" &>> "$log_file"
-	read -r -p "Choose your \"swappiness\": (recommended: 80)\n(You can change this anytime later.)\n" swappiness
+ 	printf "Choose your \"swappiness\": (recommended: 80)\n(You can change this anytime later.)\n" | tee -a "$log_file"
+	read -r swappiness
 	swappiness=${swappiness:-80}
 	echo "Setting swappiness..." | tee -a "$log_file"
 	sudo sysctl vm.swappiness="$swappiness" &>> "$log_file"
@@ -318,14 +326,16 @@ install()
 	install_neofetch
 	echo "Checking for updates..." | tee -a "$log_file"
 	check_updates
-	echo "Finishing up..." | tee -a "$log_file"
-	sleep 1 > /dev/null 2>> "$log_file"
+ 	# useless in bash 4+
+	#echo "Finishing up..." | tee -a "$log_file"
+	#sleep 1 > /dev/null 2>> "$log_file"
 }
 
 ask_restart()
 {
 	cd "$HOME"
-	read -r -p "Do you want to restart now? (Y/n)\n" restart_response
+ 	printf "Do you want to restart now? (Y/n)\n"
+	read -r restart_response
 	restart_response=${restart_response:-Y}
 	case "$restart_response" in
 	  [Yy]* )
