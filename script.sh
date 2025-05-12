@@ -4,6 +4,7 @@ log_file="$HOME/init.log"
 : > "$log_file"  # truncate or create
 
 echo "AWS Init Script" | tee -a "$log_file"
+echo "THIS SCRIPT WAS ONLY DESIGNED FOR AMAZON LINUX 2023 RUNNING BASH 4 OR HIGHER!"
 echo "Making log..." | tee -a "$log_file"
 echo "Setting variables..." | tee -a "$log_file"
 
@@ -26,7 +27,7 @@ else
 fi
 args="-y --skip-broken"
 upgrade_args="-y --skip-broken --bugfix --enhancement --newpackage --security"
-pip_args="---break-system-packages --log $log_file"
+pip_args="--break-system-packages --log $log_file"
 flatpak_args="-y --or-update --noninteractive"
 echo "Starting..." | tee -a "$log_file"
 
@@ -122,7 +123,7 @@ install_vnc()
 	wget https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-amzn2023-x86_64.tgz &>> "$log_file"
 	echo "Extracting Amazon DCV..." | tee -a "$log_file"
 	tar -xvzf nice-dcv-amzn2023-x86_64.tgz &>> "$log_file"
-	cd nice-dcv-amzn2023-x86_64
+	cd nice-dcv-*/
 	echo "Installing Amazon DCV..." | tee -a "$log_file"
 	sudo dnf install ./*.rpm dkms pulseaudio-utils "$args" &>> "$log_file"
 	echo "Please setup dkms:" | tee -a "$log_file"
@@ -228,7 +229,6 @@ install_tailscale()
 install_ncdu()
 {
 	echo "Running install_ncdu()..." | tee -a "$log_file"
-	cd "$HOME"
 	ncdu_version="2.8.2"
 	read -r -p "Enter the latest ncdu version (.tar.gz download link)\n(Leave blank to use version $ncdu_version)\n" ncdu_version
 	echo "Downloading ncdu $ncdu_version..." | tee -a "$log_file"
@@ -284,8 +284,9 @@ install()
 	echo "Importing Sublime Text key..." | tee -a "$log_file"
 	sudo rpm -v --import https://download.sublimetext.com/sublimehq-rpm-pub.gpg &>> "$log_file"
 	sudo dnf config-manager --add-repo https://download.sublimetext.com/rpm/stable/x86_64/sublime-text.repo &>> "$log_file"
-	echo "Enabling correto8 repo..." | tee -a "$log_file"
-	sudo amazon-linux-extras enable corretto8 &>> "$log_file"
+ 	# dosent work
+	#echo "Enabling correto8 repo..." | tee -a "$log_file"
+	#sudo amazon-linux-extras enable corretto8 &>> "$log_file"
 	echo "Checking for updates..." | tee -a "$log_file"
 	check_updates
 	echo "Installing tools... (this may take a while)" | tee -a "$log_file"
